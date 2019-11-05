@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ehlxr/logger/encoder"
+	"github.com/ehlxr/log/encoder"
 
-	"github.com/ehlxr/logger/bufferpool"
-	"github.com/ehlxr/logger/crash"
+	"github.com/ehlxr/log/bufferpool"
+	"github.com/ehlxr/log/crash"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

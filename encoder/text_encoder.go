@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ehlxr/logger/bufferpool"
+	"github.com/ehlxr/log/bufferpool"
 
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
