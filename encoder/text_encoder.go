@@ -88,7 +88,7 @@ func (enc textEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*
 		// if i > 0 {
 		// line.AppendByte('\t')
 		// }
-		fmt.Fprint(line, arr.elems[i])
+		_, _ = fmt.Fprint(line, arr.elems[i])
 	}
 	putSliceEncoder(arr)
 
@@ -129,7 +129,7 @@ func (enc textEncoder) writeContext(line *buffer.Buffer, extra []zapcore.Field) 
 
 	// c.addTabIfNecessary(line)
 	line.AppendByte('{')
-	line.Write(context.buf.Bytes())
+	_, _ = line.Write(context.buf.Bytes())
 	line.AppendByte('}')
 }
 
@@ -185,6 +185,8 @@ func (enc *textEncoder) AddBool(key string, val bool) {
 	enc.addElementSeparator()
 	enc.buf.AppendBool(val)
 }
+
+//noinspection GoRedundantConversion
 func (enc *textEncoder) AddComplex128(key string, val complex128) {
 	enc.addKey(key)
 	enc.addElementSeparator()
@@ -260,6 +262,8 @@ func (enc *textEncoder) AddUint64(key string, val uint64) {
 	enc.addElementSeparator()
 	enc.buf.AppendUint(val)
 }
+
+//noinspection GoRedundantConversion
 func (enc *textEncoder) AddComplex64(k string, v complex64) { enc.AddComplex128(k, complex128(v)) }
 func (enc *textEncoder) AddFloat32(k string, v float32)     { enc.AddFloat64(k, float64(v)) }
 func (enc *textEncoder) AddInt(k string, v int)             { enc.AddInt64(k, int64(v)) }
@@ -274,7 +278,7 @@ func (enc *textEncoder) AddUintptr(k string, v uintptr)     { enc.AddUint64(k, u
 
 func (enc *textEncoder) Clone() zapcore.Encoder {
 	clone := enc.clone()
-	clone.buf.Write(enc.buf.Bytes())
+	_, _ = clone.buf.Write(enc.buf.Bytes())
 	return clone
 }
 
@@ -355,7 +359,7 @@ func (enc *textEncoder) safeAddByteString(s []byte) {
 			i++
 			continue
 		}
-		enc.buf.Write(s[i : i+size])
+		_, _ = enc.buf.Write(s[i : i+size])
 		i += size
 	}
 }
