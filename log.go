@@ -220,6 +220,7 @@ func trimCallerFilePath(ec zapcore.EntryCaller) string {
 }
 
 func fileWriteSyncer(name string) zapcore.WriteSyncer {
+	// go get github.com/lestrrat-go/file-rotatelogs
 	// writer, err := rotatelogs.New(
 	// 	name+".%Y%m%d",
 	// 	rotatelogs.WithLinkName(name),             // 生成软链，指向最新日志文件
@@ -245,7 +246,8 @@ func fileWriteSyncer(name string) zapcore.WriteSyncer {
 func writeCrashLog(file string) {
 	err := os.MkdirAll(path.Dir(file), os.ModePerm)
 	if err != nil {
-		log.Fatalf("make crash log dir error. %v", errors.WithStack(err))
+		log.Fatalf("make crash log dir error. %v",
+			errors.WithStack(err))
 	}
 
 	crash.NewCrashLog(file)
