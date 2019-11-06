@@ -26,8 +26,8 @@ func setStdHandle(stdhandle int32, handle syscall.Handle) error {
 	return nil
 }
 
-// CrashLog set crash log
-func CrashLog(file string) {
+// NewCrashLog set crash log
+func NewCrashLog(file string) {
 	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Println(err.Error())

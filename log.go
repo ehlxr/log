@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
 	"os"
 	"path"
@@ -15,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var logger *zap.SugaredLogger
@@ -72,10 +72,10 @@ func (lc *logConfig) Init() {
 func NewLogConfig() *logConfig {
 	return &logConfig{
 		Level:                 DebugLevel,
-		FilePath:              "./log/",
+		FilePath:              "./logs/",
 		EnableColors:          true,
-		CrashLogPath:          "./log/crash.log",
-		ErrorLogPath:          "./log/error_",
+		CrashLogPath:          "./logs/crash.log",
+		ErrorLogPath:          "./logs/error_",
 		EnableLineNumber:      true,
 		EnableLevelTruncation: true,
 		EnableErrorStacktrace: true,
@@ -220,18 +220,26 @@ func trimCallerFilePath(ec zapcore.EntryCaller) string {
 }
 
 func fileWriteSyncer(name string) zapcore.WriteSyncer {
-	fileName := fmt.Sprintf("%s%s.log",
-		name,
-		time.Now().Format("2006-01-02"))
+	// writer, err := rotatelogs.New(
+	// 	name+".%Y%m%d",
+	// 	rotatelogs.WithLinkName(name),             // 生成软链，指向最新日志文件
+	// 	rotatelogs.WithMaxAge(7*24*time.Hour),     // 文件最大保存时间
+	// 	rotatelogs.WithRotationTime(24*time.Hour), // 日志切割时间间隔
+	// )
+	// if err != nil {
+	// 	log.Fatalf("config normal logger file error. %v", errors.WithStack(err))
+	// }
 
-	return zapcore.AddSync(&lumberjack.Logger{
-		Filename:   fileName,
+	writer := &lumberjack.Logger{
+		Filename:   fmt.Sprintf("%s%s.log", name, time.Now().Format("2006-01-02")),
 		MaxSize:    500, // 单个日志文件大小（MB）
 		MaxBackups: 10,
 		MaxAge:     30, // 保留多少天的日志
 		LocalTime:  true,
 		Compress:   true,
-	})
+	}
+
+	return zapcore.AddSync(writer)
 }
 
 func writeCrashLog(file string) {
@@ -240,7 +248,7 @@ func writeCrashLog(file string) {
 		log.Fatalf("make crash log dir error. %v", errors.WithStack(err))
 	}
 
-	crash.CrashLog(file)
+	crash.NewCrashLog(file)
 }
 
 func Fields(args ...interface{}) {
