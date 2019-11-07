@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ehlxr/log/encoder"
-
 	"github.com/ehlxr/log/bufferpool"
 	"github.com/ehlxr/log/crash"
+	"github.com/ehlxr/log/encoder"
 	"github.com/pkg/errors"
+	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -32,10 +32,9 @@ const (
 
 type logConfig struct {
 	Level            zapcore.Level
-	FilePath         string
 	EnableColors     bool
-	CrashLogPath     string
-	ErrorLogPath     string
+	CrashLogFilename string
+	ErrorLogFilename string
 	EnableLineNumber bool
 
 	// enable the truncation of the level text to 4 characters.
@@ -45,21 +44,15 @@ type logConfig struct {
 	EnableCapitalLevel    bool
 	atomicLevel           zap.AtomicLevel
 	Name                  string
+
+	*lumberjack.Logger
 }
 
 func init() {
 	lc := &logConfig{
-		Level:                 InfoLevel,
-		FilePath:              "",
-		EnableColors:          false,
-		CrashLogPath:          "",
-		ErrorLogPath:          "",
-		EnableLineNumber:      false,
-		EnableLevelTruncation: false,
-		EnableErrorStacktrace: false,
-		TimestampFormat:       "",
-		EnableCapitalLevel:    false,
-		Name:                  "",
+		Logger: &lumberjack.Logger{
+			LocalTime: true,
+		},
 	}
 
 	logger = lc.newLogger().Sugar()
@@ -70,23 +63,32 @@ func (lc *logConfig) Init() {
 }
 
 func NewLogConfig() *logConfig {
-	return &logConfig{
+	config := &logConfig{
 		Level:                 DebugLevel,
-		FilePath:              "./logs/",
 		EnableColors:          true,
-		CrashLogPath:          "./logs/crash.log",
-		ErrorLogPath:          "./logs/error_",
+		CrashLogFilename:      "./logs/crash.log",
+		ErrorLogFilename:      "./logs/error.log",
 		EnableLineNumber:      true,
 		EnableLevelTruncation: true,
 		EnableErrorStacktrace: true,
 		TimestampFormat:       "2006-01-02 15:04:05.000",
 		EnableCapitalLevel:    true,
+		Logger: &lumberjack.Logger{
+			Filename:   "./logs/log.log",
+			MaxSize:    200,
+			MaxAge:     0,
+			MaxBackups: 30,
+			LocalTime:  true,
+			Compress:   false,
+		},
 	}
+
+	return config
 }
 
 func (lc *logConfig) newLogger() *zap.Logger {
-	if lc.CrashLogPath != "" {
-		writeCrashLog(lc.CrashLogPath)
+	if lc.CrashLogFilename != "" {
+		writeCrashLog(lc.CrashLogFilename)
 	}
 
 	lc.atomicLevel = zap.NewAtomicLevelAt(lc.Level)
@@ -99,11 +101,11 @@ func (lc *logConfig) newLogger() *zap.Logger {
 			lc.atomicLevel,
 		)}
 
-	if lc.FilePath != "" {
+	if lc.Filename != "" {
 		cores = append(cores, lc.fileCore())
 	}
 
-	if lc.ErrorLogPath != "" {
+	if lc.ErrorLogFilename != "" {
 		cores = append(cores, lc.errorFileCore())
 	}
 
@@ -164,7 +166,7 @@ func (lc *logConfig) fileCore() zapcore.Core {
 		// 	zapcore.Lock(os.Stdout),
 		// 	lc.fileWriteSyncer(),
 		// ),
-		fileWriteSyncer(lc.FilePath),
+		lc.fileWriteSyncer(lc.Filename),
 		lc.atomicLevel,
 	)
 }
@@ -173,7 +175,7 @@ func (lc *logConfig) errorFileCore() zapcore.Core {
 	return zapcore.NewCore(
 		encoder.NewTextEncoder(lc.encoderConfig()),
 
-		fileWriteSyncer(lc.ErrorLogPath),
+		lc.fileWriteSyncer(lc.ErrorLogFilename),
 		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 			return lvl >= zapcore.ErrorLevel
 		}),
@@ -219,7 +221,7 @@ func trimCallerFilePath(ec zapcore.EntryCaller) string {
 	return fmt.Sprintf(" %s", caller)
 }
 
-func fileWriteSyncer(name string) zapcore.WriteSyncer {
+func (lc *logConfig) fileWriteSyncer(fileName string) zapcore.WriteSyncer {
 	// go get github.com/lestrrat-go/file-rotatelogs
 	// writer, err := rotatelogs.New(
 	// 	name+".%Y%m%d",
@@ -232,13 +234,20 @@ func fileWriteSyncer(name string) zapcore.WriteSyncer {
 	// }
 
 	writer := &lumberjack.Logger{
-		Filename:   fmt.Sprintf("%s%s.log", name, time.Now().Format("2006-01-02")),
-		MaxSize:    500, // 单个日志文件大小（MB）
-		MaxBackups: 10,
-		MaxAge:     30, // 保留多少天的日志
-		LocalTime:  true,
-		Compress:   true,
+		Filename:   fileName,
+		MaxSize:    lc.MaxSize, // 单个日志文件大小（MB）
+		MaxBackups: lc.MaxBackups,
+		MaxAge:     lc.MaxAge, // 保留多少天的日志
+		LocalTime:  lc.LocalTime,
+		Compress:   lc.Compress,
 	}
+
+	// Rotating log files daily
+	runner := cron.New(cron.WithSeconds(), cron.WithLocation(time.UTC))
+	_, _ = runner.AddFunc("0 0 0 * * ? ", func() {
+		_ = writer.Rotate()
+	})
+	go runner.Run()
 
 	return zapcore.AddSync(writer)
 }
