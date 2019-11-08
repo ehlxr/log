@@ -2,7 +2,7 @@ package log
 
 import (
 	"fmt"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"github.com/ehlxr/lumberjack"
 	"log"
 	"os"
 	"path"
@@ -12,7 +12,6 @@ import (
 	"github.com/ehlxr/log/bufferpool"
 	"github.com/ehlxr/log/crash"
 	"github.com/ehlxr/log/encoder"
-	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -63,7 +62,7 @@ func (lc *logConfig) Init() {
 }
 
 func NewLogConfig() *logConfig {
-	config := &logConfig{
+	return &logConfig{
 		Level:                 DebugLevel,
 		EnableColors:          true,
 		CrashLogFilename:      "./logs/crash.log",
@@ -74,16 +73,15 @@ func NewLogConfig() *logConfig {
 		TimestampFormat:       "2006-01-02 15:04:05.000",
 		EnableCapitalLevel:    true,
 		Logger: &lumberjack.Logger{
-			Filename:   "./logs/log.log",
-			MaxSize:    200,
-			MaxAge:     0,
-			MaxBackups: 30,
-			LocalTime:  true,
-			Compress:   false,
+			Filename:         "./logs/log.log",
+			MaxSize:          200,
+			MaxAge:           0,
+			MaxBackups:       30,
+			LocalTime:        true,
+			Compress:         false,
+			BackupTimeFormat: "2006-01-02",
 		},
 	}
-
-	return config
 }
 
 func (lc *logConfig) newLogger() *zap.Logger {
@@ -234,18 +232,19 @@ func (lc *logConfig) fileWriteSyncer(fileName string) zapcore.WriteSyncer {
 	// }
 
 	writer := &lumberjack.Logger{
-		Filename:   fileName,
-		MaxSize:    lc.MaxSize, // 单个日志文件大小（MB）
-		MaxBackups: lc.MaxBackups,
-		MaxAge:     lc.MaxAge, // 保留多少天的日志
-		LocalTime:  lc.LocalTime,
-		Compress:   lc.Compress,
+		Filename:         fileName,
+		MaxSize:          lc.MaxSize, // 单个日志文件大小（MB）
+		MaxBackups:       lc.MaxBackups,
+		MaxAge:           lc.MaxAge, // 保留多少天的日志
+		LocalTime:        lc.LocalTime,
+		Compress:         lc.Compress,
+		BackupTimeFormat: lc.BackupTimeFormat,
 	}
 
 	// Rotating log files daily
 	runner := cron.New(cron.WithSeconds(), cron.WithLocation(time.UTC))
-	_, _ = runner.AddFunc("0 0 0 * * ? ", func() {
-		_ = writer.Rotate()
+	_, _ = runner.AddFunc("0 0 0 * * ?", func() {
+		_ = writer.Rotate(time.Now().AddDate(0, 0, -1))
 	})
 	go runner.Run()
 
@@ -256,7 +255,7 @@ func writeCrashLog(file string) {
 	err := os.MkdirAll(path.Dir(file), os.ModePerm)
 	if err != nil {
 		log.Fatalf("make crash log dir error. %v",
-			errors.WithStack(err))
+			err)
 	}
 
 	crash.NewCrashLog(file)

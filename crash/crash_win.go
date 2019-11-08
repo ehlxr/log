@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 	"syscall"
-
-	"github.com/pkg/errors"
 )
 
 var (
@@ -34,7 +32,7 @@ func NewCrashLog(file string) {
 	} else {
 		err = setStdHandle(syscall.STD_ERROR_HANDLE, syscall.Handle(f.Fd()))
 		if err != nil {
-			log.Fatalf("open crash log file error. %v", errors.WithStack(err))
+			log.Fatalf("open crash log file error. %v", err)
 		}
 	}
 }

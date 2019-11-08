@@ -26,14 +26,12 @@ func TestLogWithConfig(t *testing.T) {
 
 func TestLogRote(t *testing.T) {
 	lc := NewLogConfig()
-	_ = lc.Level.Set("info")
-	lc.Name = "main"
 	lc.MaxSize = 1
 
 	lc.Init()
 
 	for {
 		Infof("this is %s message", "info")
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 1)
 	}
 }
