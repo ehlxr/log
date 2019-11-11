@@ -242,7 +242,7 @@ func (lc *logConfig) fileWriteSyncer(fileName string) zapcore.WriteSyncer {
 	}
 
 	// Rotating log files daily
-	runner := cron.New(cron.WithSeconds(), cron.WithLocation(time.UTC))
+	runner := cron.New(cron.WithSeconds(), cron.WithLocation(time.Local))
 	_, _ = runner.AddFunc("0 0 0 * * ?", func() {
 		_ = writer.Rotate(time.Now().AddDate(0, 0, -1))
 	})
