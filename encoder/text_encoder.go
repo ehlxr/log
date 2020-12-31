@@ -55,7 +55,7 @@ func NewTextEncoder(cfg zapcore.EncoderConfig) zapcore.Encoder {
 	return &textEncoder{
 		EncoderConfig: &cfg,
 		buf:           bufferpool.Get(),
-		spaced:        false,
+		spaced:        true,
 	}
 }
 
@@ -68,12 +68,13 @@ func (enc textEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*
 	if enc.TimeKey != "" && enc.EncodeTime != nil {
 		enc.EncodeTime(ent.Time, arr)
 	}
+
 	if enc.LevelKey != "" && enc.EncodeLevel != nil {
 		enc.EncodeLevel(ent.Level, arr)
 	}
+
 	if ent.LoggerName != "" && enc.NameKey != "" {
 		nameEncoder := enc.EncodeName
-
 		if nameEncoder == nil {
 			// Fall back to FullNameEncoder for backward compatibility.
 			nameEncoder = zapcore.FullNameEncoder
@@ -81,16 +82,22 @@ func (enc textEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*
 
 		nameEncoder(ent.LoggerName, arr)
 	}
+
 	if ent.Caller.Defined && enc.CallerKey != "" && enc.EncodeCaller != nil {
 		enc.EncodeCaller(ent.Caller, arr)
 	}
+
 	for i := range arr.elems {
 		// if i > 0 {
 		// line.AppendByte('\t')
 		// }
 		_, _ = fmt.Fprint(line, arr.elems[i])
 	}
+
 	putSliceEncoder(arr)
+
+	// Add any structured context.
+	enc.writeContext(line, fields)
 
 	// Add the message itself.
 	if enc.MessageKey != "" {
@@ -98,9 +105,6 @@ func (enc textEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*
 		line.AppendString(" - ")
 		line.AppendString(ent.Message)
 	}
-
-	// Add any structured context.
-	enc.writeContext(line, fields)
 
 	// If there's no stacktrace key, honor that; this allows users to force
 	// single-line output.
@@ -114,6 +118,7 @@ func (enc textEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*
 	} else {
 		line.AppendString(zapcore.DefaultLineEnding)
 	}
+
 	return line, nil
 }
 
@@ -128,9 +133,10 @@ func (enc textEncoder) writeContext(line *buffer.Buffer, extra []zapcore.Field) 
 	}
 
 	// c.addTabIfNecessary(line)
-	line.AppendByte('{')
+	// line.AppendByte('{')
+	line.AppendByte(' ')
 	_, _ = line.Write(context.buf.Bytes())
-	line.AppendByte('}')
+	// line.AppendByte('}')
 }
 
 func (enc textEncoder) addTabIfNecessary(line *buffer.Buffer) {
@@ -241,9 +247,10 @@ func (enc *textEncoder) OpenNamespace(key string) {
 func (enc *textEncoder) AddString(key, val string) {
 	enc.addKey(key)
 	enc.addElementSeparator()
-	enc.buf.AppendByte('"')
+	// enc.buf.AppendByte('"')
 	enc.safeAddString(val)
-	enc.buf.AppendByte('"')
+	// enc.buf.AppendByte('"')
+	enc.buf.AppendByte(']')
 }
 func (enc *textEncoder) AddTime(key string, val time.Time) {
 	enc.addKey(key)
@@ -293,9 +300,10 @@ func (enc *textEncoder) clone() *textEncoder {
 
 func (enc *textEncoder) addKey(key string) {
 	enc.addElementSeparator()
-	enc.buf.AppendByte('"')
+	// enc.buf.AppendByte('"')
+	enc.buf.AppendByte('[')
 	enc.safeAddString(key)
-	enc.buf.AppendByte('"')
+	// enc.buf.AppendByte('"')
 	enc.buf.AppendByte(':')
 	if enc.spaced {
 		enc.buf.AppendByte(' ')
