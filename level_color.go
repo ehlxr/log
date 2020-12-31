@@ -35,15 +35,15 @@ const (
 	White
 )
 
-func (lc *logConfig) initColor() {
+func (config *logConfig) initColor() {
 	for level, color := range _levelToColor {
 		lcs := level.String()
 
-		if lc.EnableCapitalLevel {
+		if config.EnableCapitalLevel {
 			lcs = level.CapitalString()
 		}
 
-		if lc.EnableLevelTruncation {
+		if config.EnableLevelTruncation {
 			lcs = lcs[:4]
 		}
 		_levelToColorStrings[level] = color.Add(lcs)

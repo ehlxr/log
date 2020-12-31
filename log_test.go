@@ -1,6 +1,7 @@
 package log
 
 import (
+	"go.uber.org/zap"
 	"testing"
 	"time"
 )
@@ -13,14 +14,19 @@ func TestLog(t *testing.T) {
 }
 
 func TestLogWithConfig(t *testing.T) {
-	lc := NewLogConfig()
-	_ = lc.Level.Set("info")
-	lc.Name = "main"
-	lc.Init()
+	config := NewLogConfig()
+	_ = config.Level.Set("d")
+	config.Name = "main"
+	//config.Fields = []zap.Field{zap.String("traceid", "12123123123")}
 
+	config.Init()
+
+	With("foo", "baz")
 	Debugf("this is %s message", "debug")
+	config.Init()
+	With(zap.String("traceid", "12123123123"))
 	Infof("this is %s message", "info")
-	Errorf("this is %s message", "error")
+	//Errorf("this is %s message", "error")
 	// Panicf("this is %s message", "panic")
 }
 

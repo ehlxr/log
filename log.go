@@ -43,22 +43,23 @@ type logConfig struct {
 	EnableCapitalLevel    bool
 	atomicLevel           zap.AtomicLevel
 	Name                  string
+	Fields                []zap.Field
 
 	*lumberjack.Logger
 }
 
 func init() {
-	lc := &logConfig{
+	config := &logConfig{
 		Logger: &lumberjack.Logger{
 			LocalTime: true,
 		},
 	}
 
-	logger = lc.newLogger().Sugar()
+	logger = config.newLogger().Sugar()
 }
 
-func (lc *logConfig) Init() {
-	logger = lc.newLogger().Sugar()
+func (config *logConfig) Init() {
+	logger = config.newLogger().Sugar()
 }
 
 func NewLogConfig() *logConfig {
@@ -84,54 +85,54 @@ func NewLogConfig() *logConfig {
 	}
 }
 
-func (lc *logConfig) newLogger() *zap.Logger {
-	if lc.CrashLogFilename != "" {
-		writeCrashLog(lc.CrashLogFilename)
+func (config *logConfig) newLogger() *zap.Logger {
+	if config.CrashLogFilename != "" {
+		writeCrashLog(config.CrashLogFilename)
 	}
 
-	lc.atomicLevel = zap.NewAtomicLevelAt(lc.Level)
-	lc.initColor()
+	config.atomicLevel = zap.NewAtomicLevelAt(config.Level)
+	config.initColor()
 
 	cores := []zapcore.Core{
 		zapcore.NewCore(
-			encoder.NewTextEncoder(lc.encoderConfig()),
+			encoder.NewTextEncoder(config.encoderConfig()),
 			zapcore.Lock(os.Stdout),
-			lc.atomicLevel,
+			config.atomicLevel,
 		)}
 
-	if lc.Filename != "" {
-		cores = append(cores, lc.fileCore())
+	if config.Filename != "" {
+		cores = append(cores, config.fileCore())
 	}
 
-	if lc.ErrorLogFilename != "" {
-		cores = append(cores, lc.errorFileCore())
+	if config.ErrorLogFilename != "" {
+		cores = append(cores, config.errorFileCore())
 	}
 
 	core := zapcore.NewTee(cores...)
 
 	var options []zap.Option
 
-	if lc.EnableLineNumber {
+	if config.EnableLineNumber {
 		options = append(options, zap.AddCaller(), zap.AddCallerSkip(1))
 	}
 
-	if lc.EnableErrorStacktrace {
+	if config.EnableErrorStacktrace {
 		options = append(options, zap.AddStacktrace(zapcore.ErrorLevel))
 	}
 
 	zapLog := zap.New(core, options...)
 
-	if lc.Name != "" {
-		zapLog = zapLog.Named(fmt.Sprintf("[%s]", lc.Name))
+	if config.Name != "" {
+		zapLog = zapLog.Named(fmt.Sprintf("[%s]", config.Name))
 	}
 
-	return zapLog
+	return zapLog.With(config.Fields...)
 }
 
-func (lc *logConfig) encoderConfig() zapcore.EncoderConfig {
-	el := lc.encodeLevel
-	if lc.EnableColors {
-		el = lc.encodeColorLevel
+func (config *logConfig) encoderConfig() zapcore.EncoderConfig {
+	el := config.encodeLevel
+	if config.EnableColors {
+		el = config.encodeColorLevel
 	}
 
 	return zapcore.EncoderConfig{
@@ -145,8 +146,8 @@ func (lc *logConfig) encoderConfig() zapcore.EncoderConfig {
 		EncodeLevel:   el,
 		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 			tf := time.RFC3339
-			if lc.TimestampFormat != "" {
-				tf = lc.TimestampFormat
+			if config.TimestampFormat != "" {
+				tf = config.TimestampFormat
 			}
 			enc.AppendString(t.Format(fmt.Sprintf("[%s]", tf)))
 		},
@@ -157,40 +158,40 @@ func (lc *logConfig) encoderConfig() zapcore.EncoderConfig {
 	}
 }
 
-func (lc *logConfig) fileCore() zapcore.Core {
+func (config *logConfig) fileCore() zapcore.Core {
 	return zapcore.NewCore(
-		encoder.NewTextEncoder(lc.encoderConfig()),
+		encoder.NewTextEncoder(config.encoderConfig()),
 		// zapcore.NewMultiWriteSyncer(
 		// 	zapcore.Lock(os.Stdout),
-		// 	lc.fileWriteSyncer(),
+		// 	config.fileWriteSyncer(),
 		// ),
-		lc.fileWriteSyncer(lc.Filename),
-		lc.atomicLevel,
+		config.fileWriteSyncer(config.Filename),
+		config.atomicLevel,
 	)
 }
 
-func (lc *logConfig) errorFileCore() zapcore.Core {
+func (config *logConfig) errorFileCore() zapcore.Core {
 	return zapcore.NewCore(
-		encoder.NewTextEncoder(lc.encoderConfig()),
+		encoder.NewTextEncoder(config.encoderConfig()),
 
-		lc.fileWriteSyncer(lc.ErrorLogFilename),
+		config.fileWriteSyncer(config.ErrorLogFilename),
 		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 			return lvl >= zapcore.ErrorLevel
 		}),
 	)
 }
 
-func (lc *logConfig) encodeLevel(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+func (config *logConfig) encodeLevel(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	levelString := l.CapitalString()
 
-	if lc.EnableLevelTruncation {
+	if config.EnableLevelTruncation {
 		levelString = levelString[:4]
 	}
 
 	enc.AppendString(fmt.Sprintf("[%s]", levelString))
 }
 
-func (lc *logConfig) encodeColorLevel(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+func (config *logConfig) encodeColorLevel(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	s, ok := _levelToColorStrings[l]
 	if !ok {
 		s = _unknownLevelColor.Add(l.CapitalString())
@@ -219,7 +220,7 @@ func trimCallerFilePath(ec zapcore.EntryCaller) string {
 	return fmt.Sprintf(" %s", caller)
 }
 
-func (lc *logConfig) fileWriteSyncer(fileName string) zapcore.WriteSyncer {
+func (config *logConfig) fileWriteSyncer(fileName string) zapcore.WriteSyncer {
 	// go get github.com/lestrrat-go/file-rotatelogs
 	// writer, err := rotatelogs.New(
 	// 	name+".%Y%m%d",
@@ -233,12 +234,12 @@ func (lc *logConfig) fileWriteSyncer(fileName string) zapcore.WriteSyncer {
 
 	writer := &lumberjack.Logger{
 		Filename:         fileName,
-		MaxSize:          lc.MaxSize, // 单个日志文件大小（MB）
-		MaxBackups:       lc.MaxBackups,
-		MaxAge:           lc.MaxAge, // 保留多少天的日志
-		LocalTime:        lc.LocalTime,
-		Compress:         lc.Compress,
-		BackupTimeFormat: lc.BackupTimeFormat,
+		MaxSize:          config.MaxSize, // 单个日志文件大小（MB）
+		MaxBackups:       config.MaxBackups,
+		MaxAge:           config.MaxAge, // 保留多少天的日志
+		LocalTime:        config.LocalTime,
+		Compress:         config.Compress,
+		BackupTimeFormat: config.BackupTimeFormat,
 	}
 
 	// Rotating log files daily
