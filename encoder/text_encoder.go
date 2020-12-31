@@ -222,11 +222,13 @@ func (enc *textEncoder) AddDuration(key string, val time.Duration) {
 func (enc *textEncoder) AddFloat64(key string, val float64) {
 	enc.addKey(key)
 	enc.appendFloat(val, 64)
+	enc.buf.AppendByte(']')
 }
 func (enc *textEncoder) AddInt64(key string, val int64) {
 	enc.addKey(key)
 	enc.addElementSeparator()
 	enc.buf.AppendInt(val)
+	enc.buf.AppendByte(']')
 }
 func (enc *textEncoder) AddReflected(key string, obj interface{}) error {
 	enc.resetReflectBuf()
@@ -268,6 +270,7 @@ func (enc *textEncoder) AddUint64(key string, val uint64) {
 	enc.addKey(key)
 	enc.addElementSeparator()
 	enc.buf.AppendUint(val)
+	enc.buf.AppendByte(']')
 }
 
 //noinspection GoRedundantConversion

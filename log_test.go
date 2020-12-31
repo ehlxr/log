@@ -21,7 +21,7 @@ func TestLogWithConfig(t *testing.T) {
 
 	config.Init()
 
-	With("traceid", "21221212122")
+	With("traceid", float64(21221212122))
 	Debugf("this is %s message", "debug")
 	config.Init()
 	With(zap.String("traceid", "12123123123"))
