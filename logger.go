@@ -1,9 +1,5 @@
 package log
 
-func With(args ...interface{}) {
-	logger = logger.With(args...)
-}
-
 func Debug(args ...interface{}) {
 	logger.Debug(args...)
 }

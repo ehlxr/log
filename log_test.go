@@ -21,10 +21,10 @@ func TestLogWithConfig(t *testing.T) {
 
 	config.Init()
 
-	With("traceid", float64(21221212122))
+	Fields("traceid", float64(21221212122))
 	Debugf("this is %s message", "debug")
 	config.Init()
-	With(zap.String("traceid", "12123123123"))
+	Fields(zap.String("traceid", "12123123123"))
 	Infof("this is %s message", "info")
 	// Errorf("this is %s message", "error")
 	// Panicf("this is %s message", "panic")

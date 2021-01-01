@@ -35,6 +35,7 @@ type logConfig struct {
 	CrashLogFilename string
 	ErrorLogFilename string
 	EnableLineNumber bool
+	AddCallerSkip    int
 
 	// enable the truncation of the level text to 4 characters.
 	EnableLevelTruncation bool
@@ -60,6 +61,10 @@ func init() {
 
 func (config *logConfig) Init() {
 	logger = config.newLogger().Sugar()
+}
+
+func (config *logConfig) New() *zap.SugaredLogger {
+	return config.newLogger().Sugar()
 }
 
 func NewLogConfig() *logConfig {
@@ -113,7 +118,7 @@ func (config *logConfig) newLogger() *zap.Logger {
 	var options []zap.Option
 
 	if config.EnableLineNumber {
-		options = append(options, zap.AddCaller(), zap.AddCallerSkip(1))
+		options = append(options, zap.AddCaller(), zap.AddCallerSkip(config.AddCallerSkip))
 	}
 
 	if config.EnableErrorStacktrace {
@@ -264,4 +269,8 @@ func writeCrashLog(file string) {
 
 func Fields(args ...interface{}) {
 	logger = logger.With(args...)
+}
+
+func With(l *zap.SugaredLogger, args ...interface{}) *zap.SugaredLogger {
+	return l.With(args...)
 }
