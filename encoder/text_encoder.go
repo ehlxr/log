@@ -55,7 +55,7 @@ func NewTextEncoder(cfg zapcore.EncoderConfig) zapcore.Encoder {
 	return &textEncoder{
 		EncoderConfig: &cfg,
 		buf:           bufferpool.Get(),
-		spaced:        true,
+		spaced:        false,
 	}
 }
 
@@ -222,13 +222,13 @@ func (enc *textEncoder) AddDuration(key string, val time.Duration) {
 func (enc *textEncoder) AddFloat64(key string, val float64) {
 	enc.addKey(key)
 	enc.appendFloat(val, 64)
-	enc.buf.AppendByte(']')
+	enc.buf.AppendByte('}')
 }
 func (enc *textEncoder) AddInt64(key string, val int64) {
 	enc.addKey(key)
 	enc.addElementSeparator()
 	enc.buf.AppendInt(val)
-	enc.buf.AppendByte(']')
+	enc.buf.AppendByte('}')
 }
 func (enc *textEncoder) AddReflected(key string, obj interface{}) error {
 	enc.resetReflectBuf()
@@ -252,7 +252,7 @@ func (enc *textEncoder) AddString(key, val string) {
 	// enc.buf.AppendByte('"')
 	enc.safeAddString(val)
 	// enc.buf.AppendByte('"')
-	enc.buf.AppendByte(']')
+	enc.buf.AppendByte('}')
 }
 func (enc *textEncoder) AddTime(key string, val time.Time) {
 	enc.addKey(key)
@@ -270,7 +270,7 @@ func (enc *textEncoder) AddUint64(key string, val uint64) {
 	enc.addKey(key)
 	enc.addElementSeparator()
 	enc.buf.AppendUint(val)
-	enc.buf.AppendByte(']')
+	enc.buf.AppendByte('}')
 }
 
 //noinspection GoRedundantConversion
@@ -304,13 +304,36 @@ func (enc *textEncoder) clone() *textEncoder {
 func (enc *textEncoder) addKey(key string) {
 	enc.addElementSeparator()
 	// enc.buf.AppendByte('"')
-	enc.buf.AppendByte('[')
+
+	if enc.replaceSeparator('}') {
+		enc.buf.AppendByte(',')
+		enc.buf.AppendByte(' ')
+	} else {
+		enc.buf.AppendByte('{')
+	}
 	enc.safeAddString(key)
 	// enc.buf.AppendByte('"')
-	enc.buf.AppendByte(':')
+	// enc.buf.AppendByte(':')
+	enc.buf.AppendByte('=')
 	if enc.spaced {
 		enc.buf.AppendByte(' ')
 	}
+}
+
+func (enc *textEncoder) replaceSeparator(v byte) bool {
+	last := enc.buf.Len() - 1
+	if last < 0 {
+		return false
+	}
+	if enc.buf.Bytes()[last] == v {
+		t := enc.buf.Bytes()[:last]
+
+		enc.buf.Reset()
+		_, _ = enc.buf.Write(t)
+
+		return true
+	}
+	return false
 }
 
 func (enc *textEncoder) addElementSeparator() {
@@ -322,7 +345,7 @@ func (enc *textEncoder) addElementSeparator() {
 	case '{', '[', ':', ',', ' ':
 		return
 	default:
-		enc.buf.AppendByte(',')
+		// enc.buf.AppendByte(',')
 		if enc.spaced {
 			enc.buf.AppendByte(' ')
 		}
